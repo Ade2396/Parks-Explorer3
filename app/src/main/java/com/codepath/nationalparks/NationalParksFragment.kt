@@ -1,107 +1,102 @@
 package com.codepath.nationalparks
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
-import androidx.core.widget.ContentLoadingProgressBar
+import android.widget.ProgressBar
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.codepath.asynchttpclient.AsyncHttpClient
+import com.codepath.asynchttpclient.RequestParams
+import com.codepath.asynchttpclient.callback.JsonHttpResponseHandler
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import okhttp3.Headers
+import org.json.JSONArray
 
+class NationalParksFragment : Fragment() {
 
-// --------------------------------//
-// CHANGE THIS TO BE YOUR API KEY  //
-// --------------------------------//
-private const val API_KEY = "<YOUR-API-KEY-HERE>"
+    companion object {
+        // <-- put your real key here
+        private const val API_KEY = "bB507gMIfTXkLlSVlzPDxy1FUiveKhP4s2FEBbNM"
 
-/*
- * The class for the only fragment in the app, which contains the progress bar,
- * recyclerView, and performs the network calls to the National Parks API.
+        fun newInstance(columnCount: Int): NationalParksFragment = NationalParksFragment()
+    }
 
- */
-class NationalParksFragment : Fragment(), OnListFragmentInteractionListener {
-        /*
-     * Constructing the view
-     */
-        override fun onCreateView(
-            inflater: LayoutInflater, container: ViewGroup?,
-            savedInstanceState: Bundle?
-        ): View? {
-            val view = inflater.inflate(R.layout.fragment_national_parks_list, container, false)
-            val progressBar = view.findViewById<View>(R.id.progress) as ContentLoadingProgressBar
-            val recyclerView = view.findViewById<View>(R.id.list) as RecyclerView
-            val context = view.context
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var progressBar: ProgressBar
 
-            recyclerView.layoutManager = LinearLayoutManager(context)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        // IMPORTANT: inflate the LIST layout (fragment_national_parks_list.xml)
+        return inflater.inflate(R.layout.fragment_national_parks_list, container, false)
+    }
 
-            updateAdapter(progressBar, recyclerView)
-            return view
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // These IDs must match the ones in fragment_national_parks_list.xml below
+        recyclerView = view.findViewById(R.id.list)
+        progressBar = view.findViewById(R.id.progress)
+
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        fetchParks()
+    }
+
+    private fun fetchParks() {
+        progressBar.visibility = View.VISIBLE
+
+        val client = AsyncHttpClient()
+        val params = RequestParams().apply {
+            this["api_key"] = API_KEY
+            this["limit"] = "50"
         }
 
-    /*
-     * Updates the RecyclerView adapter with new data.  This is where the
-     * networking magic happens!
-     */
-    private fun updateAdapter(progressBar: ContentLoadingProgressBar, recyclerView: RecyclerView) {
-        progressBar.show()
+        client["https://developer.nps.gov/api/v1/parks", params,
+            object : JsonHttpResponseHandler() {
 
-        // Create and set up an AsyncHTTPClient() here
+                override fun onSuccess(statusCode: Int, headers: Headers, json: JSON) {
+                    progressBar.visibility = View.GONE
 
-        // Using the client, perform the HTTP request
+                    val data: JSONArray = json.jsonObject.get("data") as JSONArray
+                    val raw = data.toString()
 
-        /* Uncomment me once you complete the above sections!
-        {
-            /*
-             * The onSuccess function gets called when
-             * HTTP response status is "200 OK"
-             */
-            override fun onSuccess(
-                statusCode: Int,
-                headers: Headers,
-                json: JsonHttpResponseHandler.JSON
-            ) {
-                // The wait for a response is over
-                progressBar.hide()
+                    val gson = Gson()
+                    val listType = object : TypeToken<List<NationalPark>>() {}.type
+                    val models: List<NationalPark> = gson.fromJson(raw, listType)
 
-                //TODO - Parse JSON into Models
+                    recyclerView.adapter = NationalParksRecyclerViewAdapter(
+                        items = models,
+                        listener = object : OnListFragmentInteractionListener {
+                            override fun onItemClick(item: NationalPark) {
+                                // simple action so it compiles & runs
+                                Log.d("NationalParksFragment", "Clicked: ${item.name}")
+                                // (Optional) Toast:
+                                // Toast.makeText(requireContext(), item.name ?: "Unknown", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
 
-                val models : List<NationalPark> = mutableListOf() // Fix me!
-                recyclerView.adapter = NationalParksRecyclerViewAdapter(models, this@NationalParksFragment)
 
-                // Look for this in Logcat:
-                Log.d("NationalParksFragment", "response successful")
-            }
+                    Log.d("NationalParksFragment", "response successful")
+                }
 
-            /*
-             * The onFailure function gets called when
-             * HTTP response status is "4XX" (eg. 401, 403, 404)
-             */
-            override fun onFailure(
-                statusCode: Int,
-                headers: Headers?,
-                errorResponse: String,
-                t: Throwable?
-            ) {
-                // The wait for a response is over
-                progressBar.hide()
-
-                // If the error is not null, log it!
-                t?.message?.let {
-                    Log.e("NationalParksFragment", errorResponse)
+                override fun onFailure(
+                    statusCode: Int,
+                    headers: Headers?,
+                    response: String,
+                    throwable: Throwable?
+                ) {
+                    progressBar.visibility = View.GONE
+                    Log.e("NationalParksFragment", "request failed: $statusCode\n$response")
                 }
             }
-        }]
-        */
-
+        ]
     }
-
-    /*
-     * What happens when a particular park is clicked.
-     */
-    override fun onItemClick(item: NationalPark) {
-        Toast.makeText(context, "Park Name: " + item.name, Toast.LENGTH_LONG).show()
-    }
-
 }

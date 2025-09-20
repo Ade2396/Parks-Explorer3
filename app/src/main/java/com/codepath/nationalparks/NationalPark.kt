@@ -3,30 +3,35 @@ package com.codepath.nationalparks
 import com.google.gson.annotations.SerializedName
 
 /**
- * The Model for storing a single park from the National Parks API.
- *
- * SerializedName tags MUST match the JSON response for the
- * object to correctly parse with the gson library.
+ * Model for a single park from the National Parks API
  */
 class NationalPark {
 
-    // Name field
+    // Name
     @JvmField
     @SerializedName("fullName")
     var name: String? = null
 
-    // Description field
+    // Description
     @JvmField
     @SerializedName("description")
     var description: String? = null
 
-    // Location or State field
+    // State(s)
     @JvmField
     @SerializedName("states")
     var location: String? = null
 
-    //TODO parkImageUrl
+    // Images array
+    @SerializedName("images")
+    var images: List<Image>? = null
 
+    // Convenience: first image URL (if any)
+    val imageUrl: String?
+        get() = images?.firstOrNull()?.url
 
-    //TODO-STRETCH-GOALS
+    class Image {
+        @SerializedName("url")
+        var url: String? = null
+    }
 }
